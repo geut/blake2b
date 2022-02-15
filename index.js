@@ -1,8 +1,6 @@
 var assert = require('nanoassert')
 var b2wasm = require('blake2b-wasm')
 
-var WASM_LOADED = false
-
 // 64-bit unsigned addition
 // Sets v[a,a+1] += v[b,b+1]
 // v should be a Uint32Array
@@ -180,7 +178,25 @@ var parameter_block = new Uint8Array([
 // Creates a BLAKE2b hashing context
 // Requires an output length between 1 and 64 bytes
 // Takes an optional Uint8Array key
-function Blake2b (outlen, key, salt, personal) {
+function Blake2b (outlen, key, salt, personal, noAssert) {
+  if (noAssert !== true) {
+    assert(outlen >= BYTES_MIN, 'outlen must be at least ' + BYTES_MIN + ', was given ' + outlen)
+    assert(outlen <= BYTES_MAX, 'outlen must be at most ' + BYTES_MAX + ', was given ' + outlen)
+    if (key != null) {
+      assert(key instanceof Uint8Array, 'key must be Uint8Array or Buffer')
+      assert(key.length >= KEYBYTES_MIN, 'key must be at least ' + KEYBYTES_MIN + ', was given ' + key.length)
+      assert(key.length <= KEYBYTES_MAX, 'key must be at most ' + KEYBYTES_MAX + ', was given ' + key.length)
+    }
+    if (salt != null) {
+      assert(salt instanceof Uint8Array, 'salt must be Uint8Array or Buffer')
+      assert(salt.length === SALTBYTES, 'salt must be exactly ' + SALTBYTES + ', was given ' + salt.length)
+    }
+    if (personal != null) {
+      assert(personal instanceof Uint8Array, 'personal must be Uint8Array or Buffer')
+      assert(personal.length === PERSONALBYTES, 'personal must be exactly ' + PERSONALBYTES + ', was given ' + personal.length)
+    }
+  }
+
   // zero out parameter_block before usage
   parameter_block.fill(0)
   // state, 'param block'
@@ -278,29 +294,7 @@ function toHex (n) {
 var Proto = Blake2b
 
 module.exports = function createHash (outlen, key, salt, personal, noAssert) {
-  if (WASM_LOADED) {
-    return b2wasm(outlen, key, salt, personal, noAssert)
-  }
-
-  if (noAssert !== true) {
-    assert(outlen >= BYTES_MIN, 'outlen must be at least ' + BYTES_MIN + ', was given ' + outlen)
-    assert(outlen <= BYTES_MAX, 'outlen must be at most ' + BYTES_MAX + ', was given ' + outlen)
-    if (key != null) {
-      assert(key instanceof Uint8Array, 'key must be Uint8Array or Buffer')
-      assert(key.length >= KEYBYTES_MIN, 'key must be at least ' + KEYBYTES_MIN + ', was given ' + key.length)
-      assert(key.length <= KEYBYTES_MAX, 'key must be at most ' + KEYBYTES_MAX + ', was given ' + key.length)
-    }
-    if (salt != null) {
-      assert(salt instanceof Uint8Array, 'salt must be Uint8Array or Buffer')
-      assert(salt.length === SALTBYTES, 'salt must be exactly ' + SALTBYTES + ', was given ' + salt.length)
-    }
-    if (personal != null) {
-      assert(personal instanceof Uint8Array, 'personal must be Uint8Array or Buffer')
-      assert(personal.length === PERSONALBYTES, 'personal must be exactly ' + PERSONALBYTES + ', was given ' + personal.length)
-    }
-  }
-
-  return new Proto(outlen, key, salt, personal)
+  return new Proto(outlen, key, salt, personal, noAssert)
 }
 
 module.exports.ready = function (cb) {
@@ -323,7 +317,7 @@ var PERSONALBYTES = module.exports.PERSONALBYTES = 16
 
 b2wasm.ready(function (err) {
   if (!err) {
-    WASM_LOADED = module.exports.WASM_LOADED = true
-    module.exports = b2wasm
+    module.exports.WASM_LOADED = true
+    module.exports = Proto = b2wasm
   }
 })
