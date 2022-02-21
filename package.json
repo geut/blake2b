@@ -1,6 +1,6 @@
 {
   "name": "@geut/blake2b",
-  "version": "2.1.4",
+  "version": "2.1.5",
   "description": "Blake2b (64-bit version) in pure Javascript",
   "main": "index.js",
   "dependencies": {
